@@ -1,0 +1,47 @@
+name: incloud
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+
+      - name: 设置 Go 环境
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.20'  # 使用 Go 1.20 版本
+
+      - name: 初始化 Go 模块
+        run: go mod init joejoequte/InCloud/SubDomain-Portscan-Dirscan-Webcrack
+
+      - name: Cache Go
+        id: cache-go
+        uses: actions/cache@v2
+        with:
+          path: /home/runner/go
+          key: ${{ runner.os }}-go
+
+      - name: 安装依赖项
+        run: sudo apt-get install libpcap-dev
+
+      - name: 安装 ProjectDiscovery 工具
+        env:
+          GO111MODULE: on
+        run: |
+          go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+          go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+        shell: bash
+
+      - name: Running SubFinder for passive DNS enumeration
+        run: |
+          subfinder -dL input/domains.txt -config config/subfinder-config.yaml -o output/passive_subdomains.txt
+        shell: bash
+
+      - name: Running dnsx for valid DNS filtering 
+        run: |
+          dnsx -l output/passive_subdomains.txt -t 50 | tee output/active_subdomains.txt
+        shell: bash
